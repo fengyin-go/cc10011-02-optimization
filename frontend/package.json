@@ -8,7 +8,10 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:impact": "esbuild tests/impact-check.ts --bundle --platform=node --format=esm --alias:@=./src --outfile=node_modules/.cache/impact-check.mjs --log-level=error && node node_modules/.cache/impact-check.mjs",
+    "check:render": "esbuild tests/render-smoke.tsx --bundle --platform=node --format=cjs --alias:@=./src --jsx=automatic --outfile=node_modules/.cache/render-smoke.cjs --log-level=error && node node_modules/.cache/render-smoke.cjs",
+    "check": "npm run typecheck && npm run check:impact && npm run check:render"
   },
   "dependencies": {
     "react": "^18.3.1",

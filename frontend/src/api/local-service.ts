@@ -1,5 +1,5 @@
 import { MODULE_BY_KEY } from '@/data/modules'
-import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
+import { IMPACT_AUX_KEY, allRows, clearAux, listRows, resetRows, saveRows } from '@/data/local-store'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
@@ -58,6 +58,10 @@ export function runAction(key: string, id: number, action: string): ActionResult
 
 export function resetModule(key: string): PageResult {
   resetRows(key)
+  // 站点登记回到示例数据后，引用旧快照的影响清单也会失效，一并清掉。
+  if (key === 'site') {
+    clearAux(IMPACT_AUX_KEY)
+  }
   return listEntries(key)
 }
 

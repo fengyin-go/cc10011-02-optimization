@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { downloadEntries, listEntries, moduleMeta, runAction as applyAction } from '@/api/local-service'
+import { loadImpactState, syncSpiderPendingList } from '@/api/impact-service'
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('spider')
@@ -47,7 +48,11 @@ export default function SpiderView() {
   const [total, setTotal] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
+  const [syncMessage, setSyncMessage] = useState('')
+  const [impactToken, setImpactToken] = useState(0)
   const filterFields = useMemo(() => columns.slice(0, 3), [])
+  const impact = useMemo(() => loadImpactState(), [impactToken])
+  const pendingJobs = impact.spiderPending?.jobIds ?? []
 
   const reload = useCallback(() => {
     setErrorMessage('')
@@ -72,6 +77,21 @@ export default function SpiderView() {
       return
     }
     reload()
+    setImpactToken((value) => value + 1)
+  }
+
+  function readImpactList() {
+    setErrorMessage('')
+    setSyncMessage('')
+    const result = syncSpiderPendingList('值班管理员')
+    if (!result.ok) {
+      setErrorMessage(result.message)
+      setImpactToken((value) => value + 1)
+      return
+    }
+    setSyncMessage(result.message)
+    setImpactToken((value) => value + 1)
+    reload()
   }
 
   return (
@@ -84,6 +104,9 @@ export default function SpiderView() {
         <div className="page-actions">
           <button className="btn primary" type="button" onClick={() => setErrorMessage('采集作业登记入口尚未接入审批流')}>
             登记采集作业
+          </button>
+          <button className="btn" type="button" onClick={readImpactList}>
+            读取影响清单并刷新待处理
           </button>
           <button className="btn" type="button" onClick={() => downloadEntries(meta.key)}>
             导出任务编排清单
@@ -99,6 +122,13 @@ export default function SpiderView() {
           </article>
         ))}
       </div>
+
+      <p className="banner ok">
+        待处理清单 {impact.spiderPending ? `${impact.spiderPending.spiderVersion}（${impact.spiderPending.basis === 'fieldUnion' ? '按每个变更字段合并影响范围' : '按最后确认的整条站点记录确定范围'}）` : '尚未读取'}
+        ：当前列表 {rows.filter((row) => pendingJobs.includes(String(row['作业编号'] ?? ''))).length} 个作业标记待复验，
+        其余 {rows.filter((row) => !pendingJobs.includes(String(row['作业编号'] ?? ''))).length} 个继续按原站点版本执行。
+      </p>
+      {syncMessage && <p className="banner ok">{syncMessage}</p>}
 
       <p className="status-legend">
         {statuses.map((status: string) => (
@@ -127,6 +157,7 @@ export default function SpiderView() {
         <thead>
           <tr>
             {columns.map((column) => <th key={column}>{column}</th>)}
+            <th>复验标记</th>
             <th>当前状态</th>
             <th>可执行动作</th>
           </tr>
@@ -135,6 +166,13 @@ export default function SpiderView() {
           {rows.map((row) => (
             <tr key={String(row.id)}>
               {columns.map((column) => <td key={column}>{row[column] ?? '—'}</td>)}
+              <td>
+                {pendingJobs.includes(String(row['作业编号'] ?? ''))
+                  ? impact.spiderPending?.completedJobIds.includes(String(row['作业编号'] ?? ''))
+                    ? <span className="tag template">已复验</span>
+                    : <span className="tag job">待复验</span>
+                  : <span className="muted">按原版本执行</span>}
+              </td>
               <td>{row.status}</td>
               <td className="row-actions">
                 {actions.map((action) => (
@@ -147,7 +185,7 @@ export default function SpiderView() {
           ))}
           {rows.length === 0 && (
             <tr>
-              <td className="empty-state" colSpan={columns.length + 2}>暂无任务编排数据，可先登记采集作业</td>
+              <td className="empty-state" colSpan={columns.length + 3}>暂无任务编排数据，可先登记采集作业</td>
             </tr>
           )}
         </tbody>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Route, Routes } from 'react-router-dom'
+import { Link, Route, Routes, useNavigate } from 'react-router-dom'
 
 import Overview from './views/Overview'
 import SiteView from './views/site'
@@ -20,11 +20,20 @@ import DeltaView from './views/delta'
 import ExportView from './views/export'
 import RpaflowView from './views/rpaflow'
 import AuthView from './views/auth'
+import ImpactView from './views/impact'
+import type { ImpactList } from './data/types'
 
-const navItems = [{ label: "运营概览", path: "/" }, { label: "站点登记", path: "/site" }, { label: "模板编排", path: "/template" }, { label: "代理轮换", path: "/proxy" }, { label: "任务编排", path: "/spider" }, { label: "调度编排", path: "/schedule" }, { label: "反爬策略", path: "/antibot" }, { label: "限速调节", path: "/ratelimit" }, { label: "重试机制", path: "/retry" }, { label: "字段映射", path: "/extractor" }, { label: "采集流水线", path: "/pipeline" }, { label: "结果校验", path: "/validator" }, { label: "数据落盘", path: "/storage" }, { label: "采集监控", path: "/monitor" }, { label: "数据清洗", path: "/cleanse" }, { label: "增量水位", path: "/delta" }, { label: "数据分发", path: "/export" }, { label: "RPA流程", path: "/rpaflow" }, { label: "登录凭证", path: "/auth" }]
+const navItems = [{ label: "运营概览", path: "/" }, { label: "站点登记", path: "/site" }, { label: "影响清单", path: "/impact" }, { label: "模板编排", path: "/template" }, { label: "代理轮换", path: "/proxy" }, { label: "任务编排", path: "/spider" }, { label: "调度编排", path: "/schedule" }, { label: "反爬策略", path: "/antibot" }, { label: "限速调节", path: "/ratelimit" }, { label: "重试机制", path: "/retry" }, { label: "字段映射", path: "/extractor" }, { label: "采集流水线", path: "/pipeline" }, { label: "结果校验", path: "/validator" }, { label: "数据落盘", path: "/storage" }, { label: "采集监控", path: "/monitor" }, { label: "数据清洗", path: "/cleanse" }, { label: "增量水位", path: "/delta" }, { label: "数据分发", path: "/export" }, { label: "RPA流程", path: "/rpaflow" }, { label: "登录凭证", path: "/auth" }]
 
 export default function App() {
   const [operator] = useState('值班管理员')
+  const [focusList, setFocusList] = useState<ImpactList | null>(null)
+  const navigate = useNavigate()
+
+  function inspectList(list: ImpactList) {
+    setFocusList(list)
+    navigate('/impact')
+  }
 
   return (
     <div className="app-shell">
@@ -45,7 +54,8 @@ export default function App() {
         </header>
         <Routes>
           <Route path="/" element={<Overview />} />
-          <Route path="/site" element={<SiteView />} />
+          <Route path="/site" element={<SiteView onInspectList={inspectList} />} />
+          <Route path="/impact" element={<ImpactView focusList={focusList} />} />
           <Route path="/template" element={<TemplateView />} />
           <Route path="/proxy" element={<ProxyView />} />
           <Route path="/spider" element={<SpiderView />} />

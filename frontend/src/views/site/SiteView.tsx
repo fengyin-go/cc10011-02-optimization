@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { downloadEntries, listEntries, moduleMeta, runAction as applyAction } from '@/api/local-service'
-import type { EntryRow } from '@/data/types'
+import { loadImpactState } from '@/api/impact-service'
+import type { EntryRow, ImpactList } from '@/data/types'
+import RevisionWorkbench from './RevisionWorkbench'
 
 const meta = moduleMeta('site')
 const columns = [
@@ -40,12 +42,18 @@ const stats = [
   }
 ]
 
-export default function SiteView() {
+type SiteViewProps = {
+  onInspectList?: (list: ImpactList) => void
+}
+
+export default function SiteView({ onInspectList }: SiteViewProps = {}) {
   const [rows, setRows] = useState<EntryRow[]>([])
   const [total, setTotal] = useState(0)
   const [errorMessage, setErrorMessage] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
+  const [impactRevision, setImpactRevision] = useState(0)
   const filterFields = useMemo(() => columns.slice(0, 3), [])
+  const impact = useMemo(() => loadImpactState(), [impactRevision, rows])
 
   const reload = useCallback(() => {
     setErrorMessage('')
@@ -72,7 +80,25 @@ export default function SiteView() {
     reload()
   }
 
+  function handleImpactChanged() {
+    setImpactRevision((value) => value + 1)
+    reload()
+  }
+
+  function handleInspect(list: ImpactList) {
+    if (onInspectList) {
+      onInspectList(list)
+      return
+    }
+    try {
+      window.localStorage.setItem('scraper-strategy-studio:impact-focus', list.listId)
+    } catch {
+      // 忽略：只是页面间提示，不影响清单数据
+    }
+  }
+
   return (
+    <>
     <section className="page" data-module="site">
       <header className="page-head">
         <div>
@@ -156,5 +182,29 @@ export default function SiteView() {
         {errorMessage && <span className="error-text">{errorMessage}</span>}
       </footer>
     </section>
+
+    <RevisionWorkbench onChanged={handleImpactChanged} onInspectList={handleInspect} />
+
+    <section className="page" data-module="site-impact-summary">
+      <header className="page-head">
+        <div>
+          <h3>最近一次变更传播结果</h3>
+          <p className="page-desc">站点登记用户能核对字段并集口径留下的当前快照，按站点编号即可查复验范围。</p>
+        </div>
+      </header>
+      {impact.activeList ? (
+        <div className="meta-grid">
+          <div><span>清单编号</span><strong>{impact.activeList.listId}</strong></div>
+          <div><span>站点编号</span><strong>{impact.activeList.siteCode}</strong></div>
+          <div><span>落库路线</span><strong>{impact.activeList.basisLabel}</strong></div>
+          <div><span>待复验入口</span><strong>{impact.activeList.entries.length}</strong></div>
+          <div><span>未纳入入口</span><strong>{impact.activeList.excluded.length}</strong></div>
+          <div><span>复核依据</span><strong>{impact.activeList.rule.reviewBasis}</strong></div>
+        </div>
+      ) : (
+        <p className="empty-hint">还没有生成过影响清单</p>
+      )}
+    </section>
+    </>
   )
 }
